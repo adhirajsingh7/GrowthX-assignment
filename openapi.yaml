@@ -1,0 +1,529 @@
+openapi: 3.0.3
+info:
+  title: Assignment Submission Portal API
+  version: 1.0.0
+  description: API for managing users, admins, and assignments in the submission portal
+
+servers:
+  - url: http://localhost:3000
+    description: Local development server
+
+paths:
+  /api/user/register:
+    post:
+      summary: Register a new user
+      description: Register a user with the role of 'user'
+      tags:
+        - User
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                email:
+                  type: string
+                password:
+                  type: string
+      responses:
+        "201":
+          description: User successfully registered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "409":
+          description: User already exists
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: User already exists
+
+  /api/user/login:
+    post:
+      summary: Log in a user
+      description: User login with email and password
+      tags:
+        - User
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                password:
+                  type: string
+      responses:
+        "200":
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Logged in successfully
+        "401":
+          description: Unauthorized (wrong credentials or missing role)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Unauthorized
+
+  /api/user/upload:
+    post:
+      summary: Upload an assignment
+      description: Allows a user to upload an assignment for an admin. Supports PDF files up to 5MB.
+      tags:
+        - Assignment
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                admin_id:
+                  type: string
+                  description: The ID of the admin to whom the assignment is submitted
+                task:
+                  type: string
+                  description: The task description
+                file:
+                  type: string
+                  format: binary
+                  description: PDF file of the assignment (max 5MB)
+      responses:
+        "201":
+          description: Assignment successfully uploaded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Assignment"
+        "400":
+          description: Invalid admin ID, missing file, or file type error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Invalid Admin ID format or file is missing/invalid
+        "403":
+          description: Forbidden (only user can access)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Only user can access
+
+  /api/user/admins:
+    get:
+      summary: Get all admins
+      description: Retrieve a paginated list of admins
+      tags:
+        - Admin
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+          description: Page number (for pagination)
+        - in: query
+          name: limit
+          schema:
+            type: integer
+          description: Limit of results per page
+        - in: query
+          name: name
+          schema:
+            type: string
+          description: Name filter for admins
+      responses:
+        "200":
+          description: List of admins
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: integer
+                  total_page:
+                    type: integer
+                  current_page:
+                    type: integer
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/User"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Internal Server Error
+
+  /api/admin/register:
+    post:
+      summary: Register a new admin
+      description: Register a user with the role of 'admin'
+      tags:
+        - Admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                email:
+                  type: string
+                password:
+                  type: string
+      responses:
+        "201":
+          description: Admin successfully registered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "409":
+          description: Admin already exists
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Admin already exists
+
+  /api/admin/login:
+    post:
+      summary: Log in an admin
+      description: Admin login with email and password
+      tags:
+        - Admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                password:
+                  type: string
+      responses:
+        "200":
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Logged in successfully
+        "401":
+          description: Unauthorized (wrong credentials or missing role)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Unauthorized
+
+  /api/admin/assignments:
+    get:
+      summary: Get all assignments for admin review
+      description: Retrieve a list of assignments assigned to an admin
+      tags:
+        - Assignment
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+          description: Page number (for pagination)
+        - in: query
+          name: limit
+          schema:
+            type: integer
+          description: Limit of results per page
+        - in: query
+          name: task
+          schema:
+            type: string
+          description: Task filter for assignments
+        - in: query
+          name: status
+          schema:
+            type: string
+          description: Status filter for assignments (comma-separated)
+      responses:
+        "200":
+          description: List of assignments
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: integer
+                  total_page:
+                    type: integer
+                  current_page:
+                    type: integer
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Assignment"
+        "403":
+          description: Forbidden (only admin can access)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Only admin can access
+
+  /api/admin/assignments/{id}/accept:
+    post:
+      summary: Accept an assignment
+      description: Accept an assignment by its ID
+      tags:
+        - Assignment
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+          required: true
+          description: Assignment ID
+      responses:
+        "200":
+          description: Assignment accepted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Assignment accepted
+        "404":
+          description: Assignment not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Assignment not found
+        "403":
+          description: Forbidden (only admin can access)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Only admin can access
+
+  /api/admin/assignments/{id}/reject:
+    post:
+      summary: Reject an assignment
+      description: Reject an assignment by its ID
+      tags:
+        - Assignment
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+          required: true
+          description: Assignment ID
+      responses:
+        "200":
+          description: Assignment rejected
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Assignment rejected
+        "404":
+          description: Assignment not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Assignment not found
+        "403":
+          description: Forbidden (only admin can access)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Only admin can access
+
+  /api/auth/status:
+    post:
+      summary: Get user authentication status
+      description: Check the current user's authentication status
+      tags:
+        - Auth
+      responses:
+        "200":
+          description: User is authenticated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  authenticated:
+                    type: boolean
+                    example: true
+                  user:
+                    $ref: "#/components/schemas/User"
+        "403":
+          description: Forbidden (user not authenticated)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: User not authenticated
+
+  /api/auth/logout:
+    post:
+      summary: Log out the current user
+      description: Log out the currently authenticated user
+      tags:
+        - Auth
+      responses:
+        "200":
+          description: Successfully logged out
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Successfully logged out
+        "401":
+          description: User not authenticated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Unauthorized
+
+components:
+  schemas:
+    User:
+      type: object
+      properties:
+        _id:
+          type: string
+        name:
+          type: string
+        email:
+          type: string
+        role:
+          type: string
+          enum:
+            - user
+            - admin
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    Assignment:
+      type: object
+      properties:
+        _id:
+          type: string
+        user_id:
+          type: string
+        admin_id:
+          type: string
+        task:
+          type: string
+        file:
+          type: string
+          description: The path of the uploaded file
+        status:
+          type: string
+          enum:
+            - pending
+            - accepted
+            - rejected
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+security:
+  - bearerAuth: []
